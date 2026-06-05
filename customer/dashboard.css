@@ -1,0 +1,855 @@
+<?php
+/**
+ * Premium Car Rental - Customer Dashboard
+ * Ultimate Customer Panel Version
+ */
+require_once '../includes/config.php';
+
+// Check login
+if (!is_logged_in()) {
+    header('Location: ../login.php');
+    exit();
+}
+
+$user_id = $_SESSION['user_id'];
+$user_name = $_SESSION['user_name'] ?? 'المستخدم';
+$user_email = $_SESSION['user_email'] ?? '';
+
+// ============================================
+// FETCH STATISTICS
+// ============================================
+try {
+    // Total bookings
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE user_id = :uid");
+    $stmt->execute([':uid' => $user_id]);
+    $total_bookings = $stmt->fetchColumn();
+    
+    // Active bookings
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE user_id = :uid AND booking_status IN ('pending', 'confirmed', 'active')");
+    $stmt->execute([':uid' => $user_id]);
+    $active_bookings_count = $stmt->fetchColumn();
+    
+    // Completed bookings
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE user_id = :uid AND booking_status = 'completed'");
+    $stmt->execute([':uid' => $user_id]);
+    $completed_bookings = $stmt->fetchColumn();
+    
+    // Total spent
+    $stmt = $pdo->prepare("SELECT COALESCE(SUM(total_amount), 0) FROM bookings WHERE user_id = :uid AND payment_status = 'paid'");
+    $stmt->execute([':uid' => $user_id]);
+    $total_spent = $stmt->fetchColumn();
+    
+    // Favorite cars count
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM favorites WHERE user_id = :uid");
+    $stmt->execute([':uid' => $user_id]);
+    $favorites_count = $stmt->fetchColumn();
+} catch (Exception $e) {
+    $total_bookings = $active_bookings_count = $completed_bookings = 0;
+    $total_spent = 0;
+    $favorites_count = 0;
+}
+
+// ============================================
+// FETCH CURRENT BOOKINGS
+// ============================================
+try {
+    $stmt = $pdo->prepare("
+        SELECT b.*, c.brand, c.model, c.year, c.color,
+               (SELECT image_path FROM car_images WHERE car_id = c.id AND is_primary = 1 LIMIT 1) as car_image
+        FROM bookings b 
+        JOIN cars c ON b.car_id = c.id 
+        WHERE b.user_id = :uid 
+        AND b.booking_status IN ('pending', 'confirmed', 'active')
+        ORDER BY b.pickup_date ASC
+        LIMIT 5
+    ");
+    $stmt->execute([':uid' => $user_id]);
+    $current_bookings = $stmt->fetchAll();
+} catch (Exception $e) {
+    $current_bookings = [];
+}
+
+// ============================================
+// FETCH PAST BOOKINGS
+// ============================================
+try {
+    $stmt = $pdo->prepare("
+        SELECT b.*, c.brand, c.model, c.year,
+               (SELECT image_path FROM car_images WHERE car_id = c.id AND is_primary = 1 LIMIT 1) as car_image
+        FROM bookings b 
+        JOIN cars c ON b.car_id = c.id 
+        WHERE b.user_id = :uid 
+        AND b.booking_status = 'completed'
+        ORDER BY b.return_date DESC
+        LIMIT 5
+    ");
+    $stmt->execute([':uid' => $user_id]);
+    $past_bookings = $stmt->fetchAll();
+} catch (Exception $e) {
+    $past_bookings = [];
+}
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+function get_car_image($path) {
+    if (empty($path)) return 'https://images.unsplash.com/photo-1543465077-db45d34b88a5?w=200&h=140&fit=crop';
+    if (filter_var($path, FILTER_VALIDATE_URL)) return $path;
+    return '../uploads/cars/' . $path;
+}
+
+$page_title = 'لوحة التحكم | ' . SITE_NAME;
+?>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?php echo $page_title; ?></title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap RTL -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- AOS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
+    
+    <!-- SweetAlert2 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #4f5fd6;
+            --primary-light: #eef0ff;
+            --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --dark: #1a1a2e;
+            --light: #f8f9fa;
+            --white: #ffffff;
+            --text: #333333;
+            --text-light: #6c757d;
+            --text-muted: #98a6ad;
+            --border: #e0e0e0;
+            --border-light: #f0f0f0;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --shadow-sm: 0 2px 10px rgba(0,0,0,0.04);
+            --shadow: 0 5px 25px rgba(0,0,0,0.08);
+            --shadow-lg: 0 15px 45px rgba(0,0,0,0.12);
+            --radius: 16px;
+            --radius-sm: 12px;
+            --radius-xs: 8px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        html { scroll-behavior: smooth; }
+        
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: #f5f6fa;
+            color: var(--text);
+            line-height: 1.8;
+        }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 3px; }
+        
+        /* ========== NAVBAR ========== */
+        .navbar {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            padding: 12px 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 900;
+            font-size: 1.2rem;
+            color: var(--dark) !important;
+            text-decoration: none;
+        }
+        
+        .navbar-brand .brand-icon {
+            width: 42px;
+            height: 42px;
+            background: var(--gradient);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            color: white;
+        }
+        
+        .btn {
+            font-weight: 600;
+            border-radius: 10px;
+            padding: 10px 20px;
+            transition: var(--transition);
+            font-size: 0.9rem;
+        }
+        
+        .btn-primary {
+            background: var(--gradient);
+            border: none;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102,126,234,0.4);
+            color: white;
+        }
+        
+        .btn-outline-primary {
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            background: transparent;
+        }
+        
+        .btn-outline-primary:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        .btn-sm { padding: 6px 14px; font-size: 0.82rem; }
+        
+        /* ========== DASHBOARD LAYOUT ========== */
+        .dashboard-section { padding: 35px 0 60px; }
+        
+        /* ========== SIDEBAR ========== */
+        .dashboard-sidebar {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            position: sticky;
+            top: 100px;
+        }
+        
+        .sidebar-profile {
+            text-align: center;
+            padding: 30px 20px;
+            background: var(--gradient);
+            color: white;
+        }
+        
+        .sidebar-profile img {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 4px solid rgba(255,255,255,0.3);
+            margin-bottom: 15px;
+            object-fit: cover;
+        }
+        
+        .sidebar-profile h5 {
+            font-weight: 800;
+            margin-bottom: 2px;
+            font-size: 1.1rem;
+        }
+        
+        .sidebar-profile p {
+            opacity: 0.85;
+            font-size: 0.85rem;
+            margin: 0;
+        }
+        
+        .sidebar-menu {
+            padding: 10px 0;
+        }
+        
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 22px;
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: var(--transition);
+            border-right: 3px solid transparent;
+        }
+        
+        .sidebar-menu a:hover {
+            background: var(--primary-light);
+            color: var(--primary);
+            border-right-color: var(--primary);
+            padding-right: 28px;
+        }
+        
+        .sidebar-menu a.active {
+            background: var(--primary-light);
+            color: var(--primary);
+            border-right-color: var(--primary);
+            font-weight: 700;
+        }
+        
+        .sidebar-menu a i {
+            width: 22px;
+            text-align: center;
+            font-size: 1rem;
+        }
+        
+        .sidebar-menu a.logout {
+            color: var(--danger);
+            border-top: 1px solid var(--border-light);
+            margin-top: 10px;
+            padding-top: 15px;
+        }
+        
+        .sidebar-menu a.logout:hover {
+            background: #fef2f2;
+            border-right-color: var(--danger);
+        }
+        
+        /* ========== MAIN CONTENT ========== */
+        /* Welcome Card */
+        .welcome-card {
+            background: var(--gradient);
+            color: white;
+            border-radius: var(--radius);
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .welcome-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -30%;
+            width: 200px;
+            height: 200px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+        }
+        
+        .welcome-card::after {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            right: -10%;
+            width: 150px;
+            height: 150px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
+        }
+        
+        .welcome-card h2 {
+            font-weight: 900;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .welcome-card p {
+            opacity: 0.9;
+            margin: 0;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Stat Cards */
+        .stat-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 22px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            transition: var(--transition);
+            text-align: center;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary);
+        }
+        
+        .stat-card .stat-icon {
+            width: 55px;
+            height: 55px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            margin: 0 auto 15px;
+        }
+        
+        .stat-card .stat-value {
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: var(--dark);
+            line-height: 1;
+            margin-bottom: 5px;
+        }
+        
+        .stat-card .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+        
+        /* Booking Cards */
+        .booking-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            transition: var(--transition);
+            margin-bottom: 15px;
+        }
+        
+        .booking-card:hover {
+            box-shadow: var(--shadow);
+            border-color: var(--primary);
+        }
+        
+        .booking-card .car-image {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+        
+        .booking-card h6 {
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 3px;
+        }
+        
+        .booking-card .booking-number {
+            font-size: 0.8rem;
+            color: var(--primary);
+            font-weight: 700;
+        }
+        
+        .booking-card .booking-dates {
+            font-size: 0.82rem;
+            color: var(--text-light);
+        }
+        
+        .badge-status {
+            padding: 5px 12px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 0.73rem;
+        }
+        
+        .badge-pending { background: #fef3c7; color: #92400e; }
+        .badge-confirmed { background: #dbeafe; color: #1e40af; }
+        .badge-active { background: #d1fae5; color: #065f46; }
+        .badge-completed { background: #e0e7ff; color: #3730a3; }
+        .badge-cancelled { background: #fee2e2; color: #991b1b; }
+        
+        /* Section Card */
+        .section-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 25px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            margin-bottom: 25px;
+        }
+        
+        .section-card .section-title {
+            font-weight: 800;
+            font-size: 1.15rem;
+            color: var(--dark);
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .section-card .section-title i { color: var(--primary); }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+        }
+        
+        .empty-state i {
+            font-size: 4rem;
+            color: #ddd;
+            margin-bottom: 20px;
+        }
+        
+        .empty-state h5 {
+            font-weight: 700;
+            color: var(--text-light);
+            margin-bottom: 10px;
+        }
+        
+        /* ========== FOOTER ========== */
+        .footer {
+            background: var(--dark);
+            color: white;
+            padding: 25px 0;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 991px) {
+            .dashboard-sidebar {
+                position: static;
+                margin-bottom: 25px;
+            }
+            
+            .sidebar-profile img {
+                width: 60px;
+                height: 60px;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .welcome-card {
+                padding: 20px;
+            }
+            
+            .welcome-card h2 {
+                font-size: 1.3rem;
+            }
+            
+            .stat-card {
+                padding: 15px;
+            }
+            
+            .stat-card .stat-value {
+                font-size: 1.4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ==================== NAVBAR ==================== -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="../index.php">
+                <span class="brand-icon">🚗</span> <?php echo SITE_NAME; ?>
+            </a>
+            
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#dashNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="dashNav">
+                <ul class="navbar-nav me-auto gap-1">
+                    <li class="nav-item"><a class="nav-link" href="../index.php">الرئيسية</a></li>
+                    <li class="nav-item"><a class="nav-link" href="../cars.php">السيارات</a></li>
+                    <li class="nav-item"><a class="nav-link" href="../contact.php">اتصل بنا</a></li>
+                </ul>
+                
+                <div class="d-flex gap-2">
+                    <a href="../cars.php" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus-circle me-1"></i> حجز جديد
+                    </a>
+                    <a href="../logout.php" class="btn btn-outline-danger btn-sm">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- ==================== DASHBOARD ==================== -->
+    <section class="dashboard-section">
+        <div class="container">
+            <div class="row">
+                <!-- ==================== SIDEBAR ==================== -->
+                <div class="col-lg-3 mb-4">
+                    <div class="dashboard-sidebar" data-aos="fade-up">
+                        <div class="sidebar-profile">
+                            <img src="https://ui-avatars.com/api/?name=<?php echo urlencode($user_name); ?>&size=100&background=667eea&color=fff&bold=true&format=png" 
+                                 alt="<?php echo htmlspecialchars($user_name); ?>">
+                            <h5><?php echo htmlspecialchars($user_name); ?></h5>
+                            <p><?php echo htmlspecialchars($user_email); ?></p>
+                        </div>
+                        
+                        <div class="sidebar-menu">
+                            <a href="dashboard.php" class="active">
+                                <i class="fas fa-tachometer-alt"></i> لوحة التحكم
+                            </a>
+                            <a href="my-bookings.php">
+                                <i class="fas fa-calendar-check"></i> حجوزاتي
+                            </a>
+                            <a href="my-favorites.php">
+                                <i class="fas fa-heart"></i> المفضلة
+                                <?php if ($favorites_count > 0): ?>
+                                <span class="badge bg-danger ms-auto"><?php echo $favorites_count; ?></span>
+                                <?php endif; ?>
+                            </a>
+                            <a href="my-invoices.php">
+                                <i class="fas fa-file-invoice"></i> الفواتير
+                            </a>
+                            <a href="profile.php">
+                                <i class="fas fa-user-cog"></i> تعديل الملف الشخصي
+                            </a>
+                            <a href="change-password.php">
+                                <i class="fas fa-lock"></i> تغيير كلمة المرور
+                            </a>
+                            <a href="../logout.php" class="logout">
+                                <i class="fas fa-sign-out-alt"></i> تسجيل الخروج
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ==================== MAIN CONTENT ==================== -->
+                <div class="col-lg-9">
+                    <!-- Welcome -->
+                    <div class="welcome-card" data-aos="fade-up">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h2><i class="fas fa-hand-wave me-2"></i> مرحباً بك، <?php echo htmlspecialchars($user_name); ?>!</h2>
+                                <p>نحن سعداء بخدمتك. استعرض حجوزاتك أو احجز سيارة جديدة الآن.</p>
+                            </div>
+                            <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                                <a href="../cars.php" class="btn btn-light fw-bold">
+                                    <i class="fas fa-plus-circle me-1"></i> حجز سيارة جديدة
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Statistics -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-6 col-md-3" data-aos="fade-up" data-aos-delay="0">
+                            <div class="stat-card">
+                                <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                                    <i class="fas fa-calendar-check"></i>
+                                </div>
+                                <div class="stat-value"><?php echo number_format($total_bookings); ?></div>
+                                <div class="stat-label">إجمالي الحجوزات</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3" data-aos="fade-up" data-aos-delay="100">
+                            <div class="stat-card">
+                                <div class="stat-icon bg-success bg-opacity-10 text-success">
+                                    <i class="fas fa-car"></i>
+                                </div>
+                                <div class="stat-value"><?php echo number_format($active_bookings_count); ?></div>
+                                <div class="stat-label">حجوزات نشطة</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3" data-aos="fade-up" data-aos-delay="200">
+                            <div class="stat-card">
+                                <div class="stat-icon bg-info bg-opacity-10 text-info">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div class="stat-value"><?php echo number_format($completed_bookings); ?></div>
+                                <div class="stat-label">حجوزات مكتملة</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3" data-aos="fade-up" data-aos-delay="300">
+                            <div class="stat-card">
+                                <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                </div>
+                                <div class="stat-value"><?php echo format_amount($total_spent); ?></div>
+                                <div class="stat-label">إجمالي المدفوعات</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Current Bookings -->
+                    <div class="section-card" data-aos="fade-up">
+                        <div class="section-title">
+                            <i class="fas fa-clock"></i> الحجوزات الحالية
+                            <a href="my-bookings.php" class="btn btn-primary btn-sm ms-auto">عرض الكل</a>
+                        </div>
+                        
+                        <?php if (empty($current_bookings)): ?>
+                        <div class="empty-state">
+                            <i class="fas fa-car-side"></i>
+                            <h5>لا توجد حجوزات حالية</h5>
+                            <p class="text-muted">احجز سيارتك الأولى الآن واستمتع بتجربة رائعة!</p>
+                            <a href="../cars.php" class="btn btn-primary mt-2">
+                                <i class="fas fa-plus-circle me-1"></i> احجز سيارة
+                            </a>
+                        </div>
+                        <?php else: ?>
+                        <div class="row g-3">
+                            <?php foreach ($current_bookings as $booking): 
+                                $car_img = get_car_image($booking['car_image'] ?? '');
+                                
+                                $status_class = match($booking['booking_status']) {
+                                    'pending' => 'badge-pending',
+                                    'confirmed' => 'badge-confirmed',
+                                    'active' => 'badge-active',
+                                    default => 'badge-pending'
+                                };
+                                
+                                $status_text = match($booking['booking_status']) {
+                                    'pending' => 'قيد الانتظار',
+                                    'confirmed' => 'مؤكد',
+                                    'active' => 'نشط',
+                                    default => 'قيد الانتظار'
+                                };
+                            ?>
+                            <div class="col-md-6">
+                                <div class="booking-card">
+                                    <div class="row g-0 align-items-center">
+                                        <div class="col-4">
+                                            <img src="<?php echo $car_img; ?>" class="car-image" 
+                                                 alt="<?php echo htmlspecialchars($booking['brand']); ?>"
+                                                 onerror="this.src='https://images.unsplash.com/photo-1543465077-db45d34b88a5?w=200&h=140&fit=crop'">
+                                        </div>
+                                        <div class="col-8 pe-3">
+                                            <h6><?php echo htmlspecialchars($booking['brand'] . ' ' . $booking['model']); ?></h6>
+                                            <p class="booking-number mb-1"><?php echo $booking['booking_number']; ?></p>
+                                            <p class="booking-dates mb-2">
+                                                <i class="fas fa-calendar-alt text-primary"></i> 
+                                                <?php echo format_date($booking['pickup_date']); ?> - 
+                                                <?php echo format_date($booking['return_date']); ?>
+                                            </p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="badge-status <?php echo $status_class; ?>"><?php echo $status_text; ?></span>
+                                                <strong class="text-primary"><?php echo format_amount($booking['total_amount']); ?></strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <!-- Past Bookings -->
+                    <?php if (!empty($past_bookings)): ?>
+                    <div class="section-card" data-aos="fade-up">
+                        <div class="section-title">
+                            <i class="fas fa-history"></i> آخر الحجوزات المكتملة
+                        </div>
+                        
+                        <div class="row g-3">
+                            <?php foreach ($past_bookings as $booking): 
+                                $car_img = get_car_image($booking['car_image'] ?? '');
+                            ?>
+                            <div class="col-md-6">
+                                <div class="booking-card">
+                                    <div class="row g-0 align-items-center">
+                                        <div class="col-4">
+                                            <img src="<?php echo $car_img; ?>" class="car-image" 
+                                                 alt="<?php echo htmlspecialchars($booking['brand']); ?>"
+                                                 onerror="this.src='https://images.unsplash.com/photo-1543465077-db45d34b88a5?w=200&h=140&fit=crop'">
+                                        </div>
+                                        <div class="col-8 pe-3">
+                                            <h6><?php echo htmlspecialchars($booking['brand'] . ' ' . $booking['model']); ?></h6>
+                                            <p class="booking-number mb-1"><?php echo $booking['booking_number']; ?></p>
+                                            <p class="booking-dates mb-2">
+                                                <i class="fas fa-calendar-alt text-success"></i> 
+                                                <?php echo format_date($booking['return_date']); ?>
+                                            </p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="badge-status badge-completed">مكتمل</span>
+                                                <strong class="text-success"><?php echo format_amount($booking['total_amount']); ?></strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- ==================== FOOTER ==================== -->
+    <footer class="footer">
+        <div class="container">
+            <p class="mb-0">&copy; <?php echo date('Y'); ?> <?php echo SITE_NAME; ?>. جميع الحقوق محفوظة.</p>
+        </div>
+    </footer>
+    
+    <!-- ==================== SCRIPTS ==================== -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script>
+        // Initialize AOS
+        AOS.init({
+            duration: 800,
+            easing: 'ease-in-out',
+            once: true,
+            offset: 30
+        });
+        
+        // Counter animation
+        document.querySelectorAll('.stat-value').forEach(counter => {
+            const target = parseFloat(counter.textContent.replace(/[^0-9.]/g, ''));
+            if (isNaN(target)) return;
+            
+            let current = 0;
+            const increment = target / 40;
+            const duration = 1200;
+            const stepTime = duration / 40;
+            
+            const updateCounter = () => {
+                current += increment;
+                if (current < target) {
+                    counter.textContent = Math.floor(current).toLocaleString();
+                    if (counter.textContent.includes('DH') || counter.parentElement.querySelector('.stat-label').textContent.includes('مدفوعات')) {
+                        counter.textContent = Math.floor(current).toLocaleString() + ' DH';
+                    }
+                    setTimeout(updateCounter, stepTime);
+                } else {
+                    if (counter.textContent.includes('DH') || counter.parentElement.querySelector('.stat-label').textContent.includes('مدفوعات')) {
+                        counter.textContent = target.toLocaleString() + ' DH';
+                    } else {
+                        counter.textContent = target.toLocaleString();
+                    }
+                }
+            };
+            
+            // Start animation when element is in view
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        updateCounter();
+                        observer.unobserve(entry.target);
+                    }
+                });
+            });
+            
+            observer.observe(counter);
+        });
+    </script>
+</body>
+</html>

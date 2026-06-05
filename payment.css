@@ -1,0 +1,194 @@
+/* Payment Page Styles */
+
+/* Success Icon Animation */
+.success-icon {
+    animation: successPulse 2s ease infinite;
+}
+
+@keyframes successPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* Payment Methods */
+.payment-methods {
+    margin-bottom: 20px;
+}
+
+.payment-method-card {
+    position: relative;
+    border: 2px solid #e0e0e0;
+    border-radius: 15px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.payment-method-card:hover {
+    border-color: #667eea;
+    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.1);
+}
+
+.payment-method-card input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.payment-method-card input[type="radio"]:checked + .payment-label {
+    color: #667eea;
+}
+
+.payment-method-card input[type="radio"]:checked ~ .payment-method-card {
+    border-color: #667eea;
+    background: #f8f9ff;
+}
+
+.payment-label {
+    cursor: pointer;
+    margin: 0;
+    width: 100%;
+}
+
+.payment-method-card:has(input[type="radio"]:checked) {
+    border-color: #667eea;
+    background: #f8f9ff;
+    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.15);
+}
+
+.payment-method-card:has(input[type="radio"]:checked)::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border: 3px solid #667eea;
+    border-radius: 17px;
+    pointer-events: none;
+}
+
+/* Card Element */
+#card-element {
+    padding: 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    background: white;
+    transition: all 0.3s ease;
+}
+
+#card-element:focus-within {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+/* Bank Details */
+.bank-details {
+    border-left: 4px solid #ffc107;
+}
+
+.bank-details p {
+    margin-bottom: 5px;
+}
+
+/* PayPal Button Container */
+#paypal-button-container {
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+/* Booking Summary */
+.booking-summary {
+    position: sticky;
+    top: 100px;
+}
+
+.booking-summary .card {
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+/* Loading Overlay */
+.payment-processing {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.payment-processing .spinner {
+    width: 80px;
+    height: 80px;
+    border: 8px solid #f3f3f3;
+    border-top: 8px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.payment-processing h3 {
+    margin-top: 20px;
+    color: #333;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Print Styles */
+@media print {
+    .navbar,
+    .footer,
+    .booking-progress,
+    .payment-methods,
+    .btn {
+        display: none !important;
+    }
+    
+    .payment-section {
+        padding: 0 !important;
+        background: white !important;
+    }
+    
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+    }
+}
+
+/* Receipt Animation */
+.receipt-print {
+    animation: slideDown 0.5s ease;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .payment-method-card {
+        padding: 15px;
+    }
+    
+    .booking-summary {
+        position: static;
+        margin-top: 30px;
+    }
+}

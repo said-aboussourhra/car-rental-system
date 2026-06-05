@@ -1,0 +1,169 @@
+/* ============================================
+   car-details.css - تفاصيل السيارة
+   ============================================ */
+
+/* Gallery */
+.car-gallery {
+    position: sticky;
+    top: 100px;
+}
+.main-image {
+    border-radius: 24px;
+    overflow: hidden;
+    cursor: zoom-in;
+    transition: var(--transition);
+}
+.main-image img {
+    width: 100%;
+    height: 450px;
+    object-fit: cover;
+    transition: transform 0.5s;
+}
+.main-image:hover img {
+    transform: scale(1.02);
+}
+.thumbnails {
+    display: flex;
+    gap: 10px;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+.thumbnail {
+    width: 80px;
+    height: 80px;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: var(--transition);
+}
+.thumbnail.active {
+    border-color: var(--primary);
+    transform: scale(1.05);
+}
+.thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Car Info Card */
+.info-card {
+    background: var(--card-bg);
+    border-radius: 24px;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+}
+.price-box {
+    background: linear-gradient(135deg, var(--primary-light), var(--light));
+    padding: 1.5rem;
+    border-radius: 20px;
+    text-align: center;
+}
+.price-box .price {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--primary);
+}
+.booking-form {
+    background: var(--light);
+    padding: 1.5rem;
+    border-radius: 20px;
+    margin-top: 1.5rem;
+}
+
+/* Tabs */
+.car-tabs {
+    border-bottom: 2px solid var(--border-color);
+    margin-top: 2rem;
+}
+.nav-tabs .nav-link {
+    border: none;
+    background: transparent;
+    color: var(--gray);
+    font-weight: 600;
+    padding: 1rem 1.5rem;
+    transition: var(--transition);
+}
+.nav-tabs .nav-link.active {
+    color: var(--primary);
+    border-bottom: 3px solid var(--primary);
+    background: transparent;
+}
+.tab-content {
+    padding: 2rem 0;
+}
+.spec-table {
+    width: 100%;
+}
+.spec-table tr {
+    border-bottom: 1px solid var(--border-color);
+}
+.spec-table td {
+    padding: 0.8rem;
+}
+.spec-table td:first-child {
+    font-weight: 600;
+    width: 40%;
+}
+
+/* Reviews */
+.review-item {
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow-sm);
+}
+.review-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.rating-distribution .progress {
+    height: 8px;
+    border-radius: 10px;
+}
+
+/* Lightbox */
+.lightbox {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    visibility: hidden;
+    opacity: 0;
+    transition: 0.3s;
+}
+.lightbox.active {
+    visibility: visible;
+    opacity: 1;
+}
+.lightbox img {
+    max-width: 90%;
+    max-height: 90%;
+    border-radius: 12px;
+}
+.close-lightbox {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    color: white;
+    font-size: 2rem;
+    cursor: pointer;
+}
+
+/* Similar Cars */
+.similar-car-card {
+    transition: var(--transition);
+}
+.similar-car-card:hover {
+    transform: translateY(-5px);
+}

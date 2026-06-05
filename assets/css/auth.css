@@ -1,0 +1,175 @@
+/* ============================================
+   auth.css - مصادقة المستخدمين
+   ============================================ */
+
+.auth-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 2rem;
+}
+.auth-card {
+    background: var(--card-bg);
+    border-radius: 32px;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+    backdrop-filter: blur(4px);
+    transition: transform 0.3s;
+}
+.auth-card:hover {
+    transform: translateY(-5px);
+}
+.auth-logo {
+    height: 70px;
+    margin-bottom: 1rem;
+}
+.auth-title {
+    font-weight: 800;
+    margin-bottom: 0.25rem;
+}
+.auth-subtitle {
+    color: var(--gray);
+    margin-bottom: 1.5rem;
+}
+
+/* Multi-step progress for register */
+.multi-step-progress {
+    margin-bottom: 2rem;
+}
+.progress-steps {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+.progress-steps .step {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--gray);
+    position: relative;
+}
+.progress-steps .step.active {
+    color: var(--primary);
+}
+.progress-steps .step.completed {
+    color: var(--success);
+}
+.progress-bar {
+    height: 4px;
+    transition: width 0.3s;
+}
+
+/* Password strength */
+.password-strength-bar {
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+.strength-meter {
+    height: 100%;
+    width: 0%;
+    transition: width 0.3s, background 0.3s;
+}
+.password-requirements {
+    list-style: none;
+    padding: 0;
+    margin-top: 10px;
+    font-size: 0.75rem;
+}
+.password-requirements li {
+    margin-bottom: 4px;
+    color: var(--gray);
+}
+.password-requirements li i {
+    margin-left: 6px;
+}
+.password-requirements .valid {
+    color: var(--success);
+}
+.password-requirements .invalid {
+    color: var(--danger);
+}
+
+/* Password match feedback */
+.match-feedback {
+    font-size: 0.75rem;
+    margin-top: 4px;
+}
+
+/* Social login buttons */
+.social-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin: 1.5rem 0;
+}
+.social-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 0.6rem;
+    border-radius: 50px;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    transition: var(--transition);
+}
+.social-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+.social-btn-google {
+    border-color: #db4437;
+    color: #db4437;
+}
+.social-btn-facebook {
+    border-color: #4267B2;
+    color: #4267B2;
+}
+
+/* Divider */
+.divider {
+    position: relative;
+    text-align: center;
+    margin: 1.5rem 0;
+}
+.divider hr {
+    border: none;
+    border-top: 1px solid var(--border-color);
+}
+.divider span {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--card-bg);
+    padding: 0 1rem;
+    color: var(--gray);
+    font-size: 0.85rem;
+}
+
+/* Toggle password button */
+.toggle-password {
+    border: 2px solid var(--border-color);
+    border-right: none;
+    background: var(--card-bg);
+    border-radius: 0 var(--radius) var(--radius) 0;
+}
+.toggle-password:hover {
+    background: var(--light);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .auth-wrapper {
+        padding: 1rem;
+    }
+    .auth-card {
+        border-radius: 24px;
+    }
+    .social-buttons {
+        flex-direction: column;
+    }
+}

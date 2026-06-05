@@ -1,0 +1,145 @@
+/* ============================================
+   booking.css - عملية الحجز متعددة الخطوات
+   ============================================ */
+
+/* Progress Steps */
+.booking-progress {
+    margin-bottom: 2rem;
+}
+.progress-steps {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    margin-bottom: 2rem;
+}
+.progress-steps::before {
+    content: '';
+    position: absolute;
+    top: 25px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--border-color);
+    z-index: 1;
+}
+.step {
+    text-align: center;
+    position: relative;
+    z-index: 2;
+    flex: 1;
+}
+.step-circle {
+    width: 50px;
+    height: 50px;
+    background: var(--card-bg);
+    border: 3px solid var(--border-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+    font-weight: bold;
+    transition: var(--transition);
+}
+.step.active .step-circle {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+    box-shadow: 0 0 0 5px rgba(102,126,234,0.3);
+}
+.step.completed .step-circle {
+    background: var(--success);
+    border-color: var(--success);
+    color: white;
+}
+.step-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* Selected Car Card */
+.selected-car-card {
+    background: var(--light);
+    border-radius: 20px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+.selected-car-img {
+    width: 100px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 12px;
+}
+
+/* Extras Cards */
+.extra-card {
+    border: 2px solid var(--border-color);
+    border-radius: 16px;
+    padding: 1rem;
+    transition: var(--transition);
+    cursor: pointer;
+}
+.extra-card:hover,
+.extra-card.selected {
+    border-color: var(--primary);
+    background: rgba(102,126,234,0.05);
+}
+.extra-quantity {
+    width: 80px;
+    text-align: center;
+    margin: 0 0.5rem;
+}
+.quantity-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--light);
+    border: none;
+    font-weight: bold;
+}
+
+/* Coupon Input */
+.coupon-group {
+    display: flex;
+    gap: 10px;
+}
+.coupon-group input {
+    flex: 1;
+}
+.coupon-message {
+    font-size: 0.85rem;
+    margin-top: 5px;
+}
+
+/* Booking Summary Sidebar */
+.summary-card {
+    position: sticky;
+    top: 100px;
+}
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.6rem 0;
+    border-bottom: 1px dashed var(--border-color);
+}
+.summary-total {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--primary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .step-circle {
+        width: 40px;
+        height: 40px;
+        font-size: 0.9rem;
+    }
+    .step-label {
+        font-size: 0.7rem;
+    }
+    .selected-car-img {
+        width: 70px;
+        height: 60px;
+    }
+}
