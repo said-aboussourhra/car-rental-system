@@ -3,7 +3,8 @@
  * Premium Car Rental - Login Page
  * Ultimate Version with Admin Redirect
  */
-require_once 'includes/config.php';
+
+require_once '../includes/config.php';
 
 // If already logged in, redirect
 if (is_logged_in()) {
