@@ -1,0 +1,11 @@
+# حماية مجلد الرفع: منع تنفيذ أي سكربت
+<IfModule mod_php.c>
+    php_flag engine Off
+</IfModule>
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phar
+RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .phar
+
+# السماح بالصور فقط
+<FilesMatch "\.(php|phtml|php[0-9]|phar|pl|py|cgi|sh)$">
+    Require all denied
+</FilesMatch>

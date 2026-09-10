@@ -1,5 +1,11 @@
 <?php
 require_once 'includes/config.php';
+require_once 'includes/auth.php';
+
+$auth = new Auth($pdo);
+
+// الدخول التلقائي عبر كوكي "تذكرني"
+$auth->loginFromRememberToken();
 
 if (is_logged_in()) {
     if (is_admin()) { redirect('admin/index.php'); }
@@ -10,26 +16,34 @@ $error = '';
 $email_value = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_valid_csrf();
+
     $email = clean_input($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
+    $remember = !empty($_POST['remember']);
     $email_value = $email;
-    
+
     if (empty($email) || empty($password)) {
         $error = 'Email et mot de passe requis';
     } else {
         try {
-            $stmt = $pdo->prepare("SELECT * FROM users WHERE email = :email AND status = 'active' LIMIT 1");
-            $stmt->execute([':email' => strtolower($email)]);
-            $user = $stmt->fetch();
-            
-            if ($user && password_verify($password, $user['password'])) {
-                $_SESSION['user_id'] = $user['id']; $_SESSION['user_name'] = $user['full_name'];
-                $_SESSION['user_email'] = $user['email']; $_SESSION['user_role'] = $user['role'];
-                $_SESSION['logged_in'] = true; session_regenerate_id(true);
-                
-                if ($user['role'] === 'admin' || $user['role'] === 'super_admin') { redirect('admin/index.php'); }
-                else { redirect('customer/dashboard.php'); }
-            } else { $error = 'Email ou mot de passe incorrect'; }
+            $result = $auth->login($email, $password, $remember);
+
+            if ($result['success']) {
+                $user = $result['user'];
+
+                // وجهة آمنة بعد الدخول (روابط داخلية فقط)
+                $redirect = $_GET['redirect'] ?? ($_POST['redirect'] ?? '');
+                $isInternal = $redirect !== '' && strpos($redirect, '//') === false && strpos($redirect, '\\') === false;
+
+                if ($user['role'] === 'admin' || $user['role'] === 'super_admin') {
+                    redirect($isInternal ? $redirect : 'admin/index.php');
+                } else {
+                    redirect($isInternal ? $redirect : 'customer/dashboard.php');
+                }
+            } else {
+                $error = $result['message'];
+            }
         } catch (Exception $e) { $error = 'Une erreur est survenue'; }
     }
 }
@@ -188,6 +202,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif;?>
             
             <form method="POST" autocomplete="off">
+                <?php echo csrf_field(); ?>
+                <?php if (!empty($_GET['redirect'])): ?>
+                    <input type="hidden" name="redirect" value="<?php echo htmlspecialchars($_GET['redirect']); ?>">
+                <?php endif; ?>
                 <div class="input-group">
                     <div class="input-wrap">
                         <input type="email" name="email" placeholder="EMAIL" value="<?php echo htmlspecialchars($email_value);?>" required>
@@ -201,6 +219,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="underline"></div>
                         <i class="fas fa-lock icon-right"></i>
                     </div>
+                </div>
+                <div class="input-group" style="display:flex;align-items:center;gap:8px;margin-bottom:22px;">
+                    <input type="checkbox" name="remember" id="remember" value="1" style="width:16px;height:16px;accent-color:var(--gold);">
+                    <label for="remember" style="color:rgba(255,255,255,.55);font-size:.82rem;letter-spacing:1px;cursor:pointer;">SE SOUVENIR DE MOI</label>
                 </div>
                 <button type="submit" class="btn-submit">Se connecter</button>
             </form>

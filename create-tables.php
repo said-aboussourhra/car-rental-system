@@ -67,8 +67,17 @@ INSERT IGNORE INTO extras (name, description, daily_rate, max_quantity, status) 
 ";
 
 try {
-    $pdo->exec($sql);
-    echo "<h2 style='color:green;text-align:center;margin-top:50px;'>✅ تم إنشاء جميع الجداول بنجاح!</h2>";
+    // PDO ينفذ جملة واحدة فقط في كل استدعاء، لذا نقسم السكريبت
+    $sql = preg_replace('/^--.*$/m', '', $sql);
+    $statements = array_filter(array_map('trim', explode(";\n", $sql)));
+    $count = 0;
+    foreach ($statements as $statement) {
+        if ($statement !== '') {
+            $pdo->exec($statement);
+            $count++;
+        }
+    }
+    echo "<h2 style='color:green;text-align:center;margin-top:50px;'>✅ تم إنشاء جميع الجداول بنجاح ($count جملة)!</h2>";
     echo "<p style='text-align:center;'><a href='admin/bookings-management.php' style='padding:15px 30px;background:#667eea;color:white;text-decoration:none;border-radius:10px;'>🔙 العودة للحجوزات</a></p>";
 } catch (Exception $e) {
     echo "<h2 style='color:red;'>❌ خطأ: " . $e->getMessage() . "</h2>";

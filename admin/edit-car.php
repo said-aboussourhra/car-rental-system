@@ -43,6 +43,7 @@ $success = '';
 
 // Handle update
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_valid_csrf();
     $brand = clean_input($_POST['brand'] ?? $car['brand']);
     $model = clean_input($_POST['model'] ?? $car['model']);
     $year = intval($_POST['year'] ?? $car['year']);
@@ -355,6 +356,7 @@ $user_name = $_SESSION['user_name'] ?? 'Admin';
                     <?php endif; ?>
                     
                     <form method="POST" action="">
+                    <?php echo csrf_field(); ?>
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label">الماركة *</label>

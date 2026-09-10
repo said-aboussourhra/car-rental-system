@@ -1,0 +1,83 @@
+/* ============================================================
+   Premium Car Rental - Responsive Rules
+   قواعد التجاوب العامة للموقع
+   ============================================================ */
+
+/* ---------- شاشات الحواسيب الصغيرة ---------- */
+@media (max-width: 1199px) {
+    .container { max-width: 960px; }
+    h1 { font-size: 1.9rem; }
+}
+
+/* ---------- الأجهزة اللوحية ---------- */
+@media (max-width: 991px) {
+    .navbar .navbar-nav { padding: 15px 0; }
+    .navbar .nav-link { padding: 10px 15px !important; }
+
+    .sidebar, .filter-sidebar {
+        position: static !important;
+        margin-bottom: 20px;
+    }
+
+    .welcome-card, .profile-hero { padding: 22px; }
+    .welcome-card h2 { font-size: 1.4rem; }
+
+    table { font-size: .85rem; }
+    th, td { padding: 10px 8px !important; }
+}
+
+/* ---------- الهواتف الكبيرة ---------- */
+@media (max-width: 767px) {
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.35rem; }
+
+    .section, .cars-section, .dashboard-section, .profile-section { padding: 25px 0 40px; }
+
+    .car-card-image, .fav-img { height: 190px; }
+
+    .btn-lg, .btn.btn-primary.btn-lg {
+        padding: 12px 20px;
+        font-size: .95rem;
+        width: 100%;
+    }
+
+    .stat-card { padding: 16px; }
+    .stat-card .stat-value { font-size: 1.3rem; }
+
+    /* الجداول تصبح قابلة للتمرير */
+    .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table { min-width: 640px; }
+
+    .modal-dialog { margin: 10px; }
+}
+
+/* ---------- الهواتف الصغيرة ---------- */
+@media (max-width: 480px) {
+    .container { padding-left: 12px; padding-right: 12px; }
+
+    .car-card-overlay { opacity: 1; background: rgba(0,0,0,.25); }
+
+    .summary-row { font-size: .85rem; }
+
+    .fav-actions { flex-direction: column; }
+    .fav-actions a { text-align: center; }
+
+    input, select, textarea, .form-control, .form-select { font-size: 16px !important; /* منع التكبير التلقائي في iOS */ }
+
+    .navbar-brand { font-size: 1rem !important; }
+    .navbar-brand img { height: 38px; }
+}
+
+/* ---------- إصلاحات عامة ---------- */
+img { max-width: 100%; height: auto; }
+
+/* إخفاء شريط التمرير الأفقي */
+html, body { overflow-x: hidden; }
+
+/* تحسين طباعة الفواتير والعقود */
+@media print {
+    .navbar, .footer, .no-print, .admin-sidebar, .admin-topbar { display: none !important; }
+    body { background: #fff !important; }
+    .admin-main { margin: 0 !important; }
+    a[href]:after { content: none !important; }
+}

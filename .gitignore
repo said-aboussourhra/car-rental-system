@@ -1,0 +1,28 @@
+# ملفات النظام
+.DS_Store
+Thumbs.db
+*.lnk
+desktop.ini
+
+# البيئات والأسرار
+.env
+*.local
+config.local.php
+
+# السجلات والمؤقتات
+*.log
+logs/
+tmp/
+cache/
+
+# الملفات المرفوعة من المستخدمين (تبقى البنية فقط)
+uploads/cars/*
+uploads/avatars/*
+uploads/invoices/*
+!uploads/**/.gitkeep
+
+# أدوات التطوير
+node_modules/
+vendor/
+.idea/
+.vscode/

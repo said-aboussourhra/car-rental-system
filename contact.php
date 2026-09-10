@@ -5,6 +5,7 @@ $success = '';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_valid_csrf();
     $name = clean_input($_POST['name'] ?? '');
     $email = clean_input($_POST['email'] ?? '');
     $phone = clean_input($_POST['phone'] ?? '');
@@ -139,6 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <?php if($success): ?><div class="alert alert-success"><i class="fas fa-check-circle me-2"></i> <?php echo $success; ?></div><?php endif; ?>
                         <?php if($error): ?><div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i> <?php echo $error; ?></div><?php endif; ?>
                         <form method="POST">
+                        <?php echo csrf_field(); ?>
                             <div class="row g-3">
                                 <div class="col-md-6"><input type="text" class="form-control" name="name" placeholder="الاسم الكامل *" required></div>
                                 <div class="col-md-6"><input type="email" class="form-control" name="email" placeholder="البريد الإلكتروني *" required></div>

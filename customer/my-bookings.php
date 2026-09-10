@@ -16,6 +16,7 @@ $user_email = $_SESSION['user_email'] ?? '';
 
 // Handle cancel booking
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_booking'])) {
+    require_valid_csrf();
     $booking_id = intval($_POST['booking_id'] ?? 0);
     if ($booking_id > 0) {
         try {
@@ -383,6 +384,7 @@ $success = $success ?? '';
                                             <?php endif; ?>
                                             <?php if(in_array($b['booking_status'],['pending','confirmed'])): ?>
                                             <form method="POST" style="display:inline;" onsubmit="return confirm('إلغاء هذا الحجز؟')">
+                                            <?php echo csrf_field(); ?>
                                                 <input type="hidden" name="booking_id" value="<?php echo $b['id']; ?>"><input type="hidden" name="cancel_booking" value="1">
                                                 <button type="submit" class="btn btn-danger btn-xs"><i class="fas fa-times"></i></button>
                                             </form>

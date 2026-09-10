@@ -19,6 +19,9 @@ $price_min = isset($_GET['price_min']) ? floatval($_GET['price_min']) : 0;
 $price_max = isset($_GET['price_max']) ? floatval($_GET['price_max']) : 0;
 $sort = isset($_GET['sort']) ? clean_input($_GET['sort']) : 'popular';
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+$pickup_date = isset($_GET['pickup_date']) ? clean_input($_GET['pickup_date']) : '';
+$return_date = isset($_GET['return_date']) ? clean_input($_GET['return_date']) : '';
+$pickup_location = isset($_GET['pickup_location']) ? clean_input($_GET['pickup_location']) : '';
 
 // ============================================
 // BUILD QUERY
@@ -129,6 +132,13 @@ try {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $cars = $stmt->fetchAll();
+
+    // استبعاد السيارات غير المتوفرة في التواريخ المطلوبة
+    if (!empty($pickup_date) && !empty($return_date) && $return_date > $pickup_date) {
+        $cars = array_values(array_filter($cars, function ($c) use ($pickup_date, $return_date) {
+            return check_car_availability($c['id'], $pickup_date . ' 00:00:00', $return_date . ' 23:59:59');
+        }));
+    }
 } catch (Exception $e) {
     $cars = [];
 }
@@ -140,6 +150,18 @@ try {
     $brands = $pdo->query("SELECT DISTINCT brand FROM cars WHERE status = 'available' ORDER BY brand ASC")->fetchAll();
 } catch (Exception $e) {
     $brands = [];
+}
+
+// ============================================
+// مفضلة المستخدم الحالي (لأيقونة القلب)
+// ============================================
+$wishlist_ids = [];
+if (is_logged_in()) {
+    try {
+        $stmt = $pdo->prepare("SELECT car_id FROM favorites WHERE user_id = :uid");
+        $stmt->execute([':uid' => $_SESSION['user_id']]);
+        $wishlist_ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Exception $e) {}
 }
 
 // ============================================
@@ -720,10 +742,20 @@ $page_title = 'السيارات المتوفرة للإيجار | ' . SITE_NAME;
                 <!-- ==================== FILTER SIDEBAR ==================== -->
                 <div class="col-lg-3 mb-4">
                     <form method="GET" action="cars.php" id="filterForm">
+                        <?php if ($pickup_date): ?><input type="hidden" name="pickup_date" value="<?php echo e($pickup_date); ?>"><?php endif; ?>
+                        <?php if ($return_date): ?><input type="hidden" name="return_date" value="<?php echo e($return_date); ?>"><?php endif; ?>
+                        <?php if ($pickup_location): ?><input type="hidden" name="pickup_location" value="<?php echo e($pickup_location); ?>"><?php endif; ?>
                         <div class="filter-sidebar">
                             <div class="filter-title">
                                 <i class="fas fa-sliders-h text-primary"></i> تصفية النتائج
                             </div>
+                            <?php if ($pickup_date && $return_date): ?>
+                            <div class="alert alert-info py-2" style="font-size:.8rem;border-radius:10px;">
+                                <i class="fas fa-calendar-alt"></i> التواريخ المختارة:
+                                <b><?php echo e(format_date($pickup_date)); ?> ← <?php echo e(format_date($return_date)); ?></b>
+                                <br><a href="cars.php" style="font-size:.75rem;">إزالة التواريخ</a>
+                            </div>
+                            <?php endif; ?>
                             
                             <!-- Search -->
                             <div class="filter-group">
@@ -880,11 +912,17 @@ $page_title = 'السيارات المتوفرة للإيجار | ' . SITE_NAME;
                                     <span class="car-badge eco"><i class="fas fa-leaf"></i> صديق للبيئة</span>
                                     <?php endif; ?>
                                     
+                                    <button type="button" class="fav-btn <?php echo in_array($car['id'], $wishlist_ids) ? 'active' : ''; ?>"
+                                            onclick="toggleWishlist(<?php echo $car['id']; ?>, this)"
+                                            title="المفضلة">
+                                        <i class="<?php echo in_array($car['id'], $wishlist_ids) ? 'fas' : 'far'; ?> fa-heart"></i>
+                                    </button>
+                                    
                                     <div class="car-card-overlay">
                                         <a href="car-details.php?id=<?php echo $car['id']; ?>" class="btn btn-light btn-sm">
                                             <i class="fas fa-eye"></i> تفاصيل
                                         </a>
-                                        <a href="booking.php?car_id=<?php echo $car['id']; ?>" class="btn btn-primary btn-sm">
+                                        <a href="booking.php?car_id=<?php echo $car['id']; ?><?php echo $pickup_date ? '&pickup_date=' . urlencode($pickup_date) . '&return_date=' . urlencode($return_date) : ''; ?><?php echo $pickup_location ? '&pickup_location=' . urlencode($pickup_location) : ''; ?>" class="btn btn-primary btn-sm">
                                             <i class="fas fa-calendar-check"></i> احجز
                                         </a>
                                     </div>
@@ -1011,5 +1049,67 @@ $page_title = 'السيارات المتوفرة للإيجار | ' . SITE_NAME;
     </footer>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .fav-btn {
+            position: absolute; top: 12px; left: 12px; z-index: 5;
+            width: 38px; height: 38px; border-radius: 50%;
+            border: none; background: rgba(255,255,255,.92);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all .25s ease; font-size: 1rem; color: #6b7280;
+            box-shadow: 0 3px 10px rgba(0,0,0,.15);
+        }
+        .fav-btn:hover { transform: scale(1.12); }
+        .fav-btn.active { color: #ef4444; }
+        .car-card-image { position: relative; }
+    </style>
+    <script>
+        var isLoggedIn = <?php echo is_logged_in() ? 'true' : 'false'; ?>;
+
+        function toggleWishlist(carId, button) {
+            if (!isLoggedIn) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'تسجيل الدخول مطلوب',
+                    text: 'يرجى تسجيل الدخول لإضافة السيارات إلى المفضلة',
+                    confirmButtonText: 'تسجيل الدخول',
+                    showCancelButton: true,
+                    cancelButtonText: 'إلغاء',
+                    confirmButtonColor: '#667eea'
+                }).then(function (result) {
+                    if (result.isConfirmed) window.location.href = 'login.php?redirect=cars.php';
+                });
+                return;
+            }
+
+            button.disabled = true;
+            var icon = button.querySelector('i');
+
+            fetch('api/toggle-wishlist.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ car_id: carId })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                button.disabled = false;
+                if (data.success) {
+                    button.classList.toggle('active', data.in_wishlist);
+                    icon.className = (data.in_wishlist ? 'fas' : 'far') + ' fa-heart';
+                    Swal.fire({
+                        icon: data.in_wishlist ? 'success' : 'info',
+                        title: data.message,
+                        timer: 1300, showConfirmButton: false, position: 'top'
+                    });
+                } else {
+                    Swal.fire({ icon: 'error', title: 'خطأ', text: data.message || 'حدث خطأ' });
+                }
+            })
+            .catch(function () {
+                button.disabled = false;
+                Swal.fire({ icon: 'error', title: 'خطأ في الاتصال' });
+            });
+        }
+    </script>
 </body>
 </html>

@@ -1,12 +1,31 @@
 <?php
-// create-admin.php - Create admin account
+// create-admin.php - إنشاء حساب مدير عبر سطر الأوامر أو المتصفح
+// ⚠️ احذف هذا الملف فور الانتهاء من استخدامه
+//
+// الاستخدام من سطر الأوامر (الطريقة الموصى بها):
+//   php create-admin.php admin@example.com "كلمة_المرور" "الاسم الكامل"
+// بدون معطيات: يُنشئ حساباً بكلمة مرور عشوائية تُعرض مرة واحدة فقط.
+
 require_once 'includes/config.php';
 
-echo '<!DOCTYPE html>
-<html dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <title>إنشاء حساب المدير</title>
+$is_cli = (PHP_SAPI === 'cli');
+
+// المعطيات
+$email = $argv[1] ?? ($_GET['email'] ?? '');
+$password = $argv[2] ?? '';
+$full_name = $argv[3] ?? 'مدير النظام';
+$generated = false;
+
+if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $email = 'admin@carrental.ma';
+}
+if ($password === '') {
+    $password = generate_random_password(14);
+    $generated = true;
+}
+
+if (!$is_cli) {
+    echo '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>إنشاء حساب المدير</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: "Cairo", sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; background: #f0f2f5; }
@@ -14,56 +33,53 @@ echo '<!DOCTYPE html>
         .success { color: #10b981; font-weight: 700; }
         .error { color: #ef4444; font-weight: 700; }
         .info { background: #f0f9ff; padding: 15px; border-radius: 10px; margin: 15px 0; }
+        .warn { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; padding: 12px; border-radius: 10px; font-size: .85rem; }
         .btn { display: inline-block; padding: 14px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 10px; font-weight: 700; margin: 10px; }
-        .btn:hover { background: #5a6fd6; }
         h2 { color: #1a1a2e; }
-    </style>
-</head>
-<body>
-<div class="card">
-    <h2>🔐 إنشاء حساب المدير</h2>';
-
-// Admin data
-$email = 's01said@outlook.fr';
-$password = 'SAID2002';
-$full_name = 'سعيد';
-$role = 'super_admin';
+        code { background:#eef0ff; padding:2px 8px; border-radius:6px; }
+    </style></head><body><div class="card"><h2>🔐 إنشاء حساب المدير</h2>';
+}
 
 try {
-    // Check if user exists
     $stmt = $pdo->prepare("SELECT id, role FROM users WHERE email = ?");
     $stmt->execute([$email]);
     $existing = $stmt->fetch();
-    
+
+    $hashed = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+
     if ($existing) {
-        // Update existing user to admin
-        $hashed = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
-        $stmt = $pdo->prepare("UPDATE users SET password = ?, role = ?, status = 'active', full_name = ? WHERE email = ?");
-        $stmt->execute([$hashed, $role, $full_name, $email]);
-        
-        echo '<p class="success">✅ تم تحديث الحساب إلى مدير النظام</p>';
+        // ترقية الحساب الموجود إلى مدير
+        $stmt = $pdo->prepare("UPDATE users SET password = ?, role = 'super_admin', status = 'active', full_name = ? WHERE email = ?");
+        $stmt->execute([$hashed, $full_name, $email]);
+        $msg = '✅ تم تحديث الحساب وترقيته إلى مدير النظام';
     } else {
-        // Create new admin
-        $hashed = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
-        $stmt = $pdo->prepare("INSERT INTO users (full_name, email, password, phone, role, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'active', NOW(), NOW())");
-        $stmt->execute([$full_name, $email, $hashed, '0600000000', $role]);
-        
-        echo '<p class="success">✅ تم إنشاء حساب المدير بنجاح</p>';
+        $stmt = $pdo->prepare("INSERT INTO users (full_name, email, password, phone, role, status, email_verified_at, created_at, updated_at) VALUES (?, ?, ?, '0600000000', 'super_admin', 'active', NOW(), NOW(), NOW())");
+        $stmt->execute([$full_name, $email, $hashed]);
+        $msg = '✅ تم إنشاء حساب المدير بنجاح';
     }
-    
-    echo '<div class="info">';
-    echo '<h3>بيانات تسجيل الدخول:</h3>';
-    echo '<p>📧 البريد: <strong>' . $email . '</strong></p>';
-    echo '<p>🔑 كلمة المرور: <strong>' . $password . '</strong></p>';
-    echo '<p>👤 الصلاحية: <strong>مدير النظام</strong></p>';
-    echo '</div>';
-    
-    echo '<a href="logout.php" class="btn">🚪 تسجيل الخروج أولاً</a>';
-    echo '<a href="login.php" class="btn">🔐 تسجيل الدخول</a>';
-    
+
+    if ($is_cli) {
+        echo "$msg\n";
+        echo "البريد: $email\nكلمة المرور: $password" . ($generated ? " (مولّدة تلقائياً — احفظها الآن!)" : "") . "\n";
+    } else {
+        echo "<p class='success'>$msg</p>";
+        echo '<div class="info"><h3>بيانات تسجيل الدخول:</h3>';
+        echo '<p>📧 البريد: <strong>' . htmlspecialchars($email) . '</strong></p>';
+        echo '<p>🔑 كلمة المرور: <code>' . htmlspecialchars($password) . '</code></p>';
+        if ($generated) echo '<p style="color:#f59e0b;">⚠️ كلمة المرور مولّدة تلقائياً — انسخها الآن، لن تظهر مرة أخرى.</p>';
+        echo '</div>';
+        echo '<div class="warn">🔒 للأمان: احذف ملف <b>create-admin.php</b> الآن، وغيّر كلمة المرور بعد أول دخول.</div>';
+        echo '<a href="login.php" class="btn">🔐 تسجيل الدخول</a>';
+    }
 } catch (Exception $e) {
-    echo '<p class="error">❌ خطأ: ' . $e->getMessage() . '</p>';
+    $err = '❌ خطأ: ' . $e->getMessage();
+    if ($is_cli) {
+        fwrite(STDERR, $err . "\n");
+        exit(1);
+    }
+    echo "<p class='error'>" . htmlspecialchars($err) . "</p>";
 }
 
-echo '</div></body></html>';
-?>
+if (!$is_cli) {
+    echo '</div></body></html>';
+}

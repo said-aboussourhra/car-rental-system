@@ -135,6 +135,7 @@ $payment_error = '';
 $selected_bank = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_valid_csrf();
     $payment_method = clean_input($_POST['payment_method'] ?? 'cash');
     $selected_bank = clean_input($_POST['bank'] ?? '');
     $transaction_ref = clean_input($_POST['transaction_ref'] ?? '');
@@ -308,6 +309,7 @@ function car_img($path) {
             <?php if ($payment_error): ?><div class="alert alert-danger"><?php echo $payment_error; ?></div><?php endif; ?>
             
             <form method="POST" id="paymentForm">
+            <?php echo csrf_field(); ?>
                 <div class="row">
                     <div class="col-lg-8">
                         <div class="card">

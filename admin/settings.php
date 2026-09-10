@@ -17,6 +17,7 @@ $user_name = $_SESSION['user_name'] ?? 'Admin';
 // HANDLE SETTINGS SAVE
 // ============================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_settings'])) {
+    require_valid_csrf();
     $settings = [
         'site_name' => clean_input($_POST['site_name'] ?? SITE_NAME),
         'site_email' => clean_input($_POST['site_email'] ?? ADMIN_EMAIL),
@@ -55,6 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_settings'])) {
 
 // Handle add location
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_location'])) {
+    require_valid_csrf();
     $loc_name = clean_input($_POST['loc_name'] ?? '');
     $loc_city = clean_input($_POST['loc_city'] ?? '');
     $loc_address = clean_input($_POST['loc_address'] ?? '');
@@ -87,6 +89,7 @@ if (isset($_GET['delete_loc'])) {
 
 // Handle add extra
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_extra'])) {
+    require_valid_csrf();
     $ext_name = clean_input($_POST['ext_name'] ?? '');
     $ext_desc = clean_input($_POST['ext_desc'] ?? '');
     $ext_rate = floatval($_POST['ext_rate'] ?? 0);
@@ -320,6 +323,7 @@ $success = $success ?? '';
                     <!-- GENERAL TAB -->
                     <div class="tab-pane fade show active" id="general">
                         <form method="POST" class="content-card">
+                        <?php echo csrf_field(); ?>
                             <h5><i class="fas fa-sliders-h"></i> الإعدادات العامة</h5>
                             <div class="row g-3">
                                 <div class="col-md-6">
@@ -392,6 +396,7 @@ $success = $success ?? '';
                     <!-- SOCIAL TAB -->
                     <div class="tab-pane fade" id="social">
                         <form method="POST" class="content-card">
+                        <?php echo csrf_field(); ?>
                             <h5><i class="fas fa-share-alt"></i> وسائل التواصل</h5>
                             <div class="row g-3">
                                 <div class="col-md-6">
@@ -426,6 +431,7 @@ $success = $success ?? '';
                             
                             <!-- Add Form -->
                             <form method="POST" class="row g-2 mb-4 p-3" style="background:#f8f9fa;border-radius:10px;">
+                            <?php echo csrf_field(); ?>
                                 <input type="hidden" name="add_location" value="1">
                                 <div class="col-md-4">
                                     <input type="text" class="form-control" name="loc_name" placeholder="اسم الموقع *" required>
@@ -481,6 +487,7 @@ $success = $success ?? '';
                             <h5><i class="fas fa-plus-circle"></i> الإضافات الاختيارية</h5>
                             
                             <form method="POST" class="row g-2 mb-4 p-3" style="background:#f8f9fa;border-radius:10px;">
+                            <?php echo csrf_field(); ?>
                                 <input type="hidden" name="add_extra" value="1">
                                 <div class="col-md-3">
                                     <input type="text" class="form-control" name="ext_name" placeholder="الاسم *" required>
@@ -528,6 +535,7 @@ $success = $success ?? '';
                     <!-- TEXTS TAB -->
                     <div class="tab-pane fade" id="texts">
                         <form method="POST" class="content-card">
+                        <?php echo csrf_field(); ?>
                             <h5><i class="fas fa-file-alt"></i> النصوص والصفحات</h5>
                             <div class="mb-3">
                                 <label class="form-label">نص من نحن</label>

@@ -17,6 +17,7 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_valid_csrf();
     $brand = trim($_POST['brand'] ?? '');
     $model = trim($_POST['model'] ?? '');
     $year = intval($_POST['year'] ?? 2024);
@@ -220,6 +221,7 @@ $user_name = $_SESSION['user_name'] ?? 'Admin';
                     <h4><i class="fas fa-plus-circle"></i> إضافة سيارة جديدة</h4>
                     
                     <form method="POST" enctype="multipart/form-data">
+                    <?php echo csrf_field(); ?>
                         <!-- Row 1: Brand & Model -->
                         <div class="row g-3 mb-3">
                             <div class="col-md-6">
