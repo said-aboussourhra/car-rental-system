@@ -6,6 +6,7 @@ if (is_logged_in()) { redirect('customer/dashboard.php'); }
 $error = ''; $success = ''; $form_data = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_valid_csrf();
     $form_data = [
         'full_name' => trim($_POST['full_name'] ?? ''),
         'email' => trim($_POST['email'] ?? ''),
@@ -204,6 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php else:?>
             
             <form method="POST" autocomplete="off">
+            <?php echo csrf_field(); ?>
                 <div class="input-group">
                     <div class="input-wrap">
                         <input type="text" name="full_name" placeholder="NOM COMPLET" value="<?php echo htmlspecialchars($form_data['full_name']??'');?>" required>

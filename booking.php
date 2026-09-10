@@ -82,6 +82,9 @@ $booking_error = '';
 $booking_data = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // حماية من تزوير الطلبات عبر المواقع
+    require_valid_csrf();
+
     $pickup_date = $_POST['pickup_date'] ?? '';
     $return_date = $_POST['return_date'] ?? '';
     $pickup_location = $_POST['pickup_location'] ?? '';
@@ -89,6 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $return_time = $_POST['return_time'] ?? '10:00';
     $notes = clean_input($_POST['notes'] ?? '');
     $selected_extras = $_POST['extras'] ?? [];
+    $coupon_code = strtoupper(trim($_POST['coupon_code'] ?? ''));
     
     $errors = [];
     
@@ -140,12 +144,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             
-            // Discount
+            // Discount (المدة)
             $discount = 0;
             $subtotal_extras = $subtotal + $extras_total;
             if ($days >= 30) $discount = $subtotal_extras * 0.20;
             elseif ($days >= 7) $discount = $subtotal_extras * 0.10;
-            
+
+            // الكوبون: يُطبق الخصم الأفضل فقط (لا يُجمع مع خصم المدة)
+            $applied_coupon = null;
+            if ($coupon_code !== '') {
+                try {
+                    $cStmt = $pdo->prepare("SELECT * FROM coupons WHERE code = :code AND status = 'active' LIMIT 1");
+                    $cStmt->execute([':code' => $coupon_code]);
+                    $coupon = $cStmt->fetch();
+                    if ($coupon
+                        && ($coupon['expires_at'] === null || strtotime($coupon['expires_at']) > time())
+                        && ($coupon['max_uses'] === null || $coupon['used_count'] < $coupon['max_uses'])
+                        && $days >= (int)$coupon['min_days']) {
+                        $coupon_disc = ($coupon['type'] === 'percent')
+                            ? $subtotal_extras * ($coupon['value'] / 100)
+                            : min($coupon['value'], $subtotal_extras);
+                        if ($coupon_disc > $discount) {
+                            $discount = $coupon_disc;
+                            $applied_coupon = $coupon['code'];
+                        }
+                    }
+                } catch (Exception $e) { /* جدول الكوبونات غير موجود - تجاهل */ }
+            }
+
             $after_discount = $subtotal_extras - $discount;
             $tax = $after_discount * (TAX_RATE / 100);
             $total_amount = $after_discount + $tax;
@@ -159,16 +185,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     pickup_date, return_date,
                     pickup_location, return_location,
                     total_days, daily_rate, subtotal,
-                    extras_charges, tax_amount, total_amount,
-                    deposit_amount, extras, notes,
+                    extras_charges, discount_amount, tax_amount, total_amount,
+                    deposit_amount, extras, notes, coupon_code,
                     payment_status, booking_status, created_at
                 ) VALUES (
                     :bn, :uid, :cid,
                     :pd, :rd,
                     :pl, :rl,
                     :days, :dr, :sub,
-                    :ext, :tax, :tot,
-                    :dep, :extras, :notes,
+                    :ext, :disc, :tax, :tot,
+                    :dep, :extras, :notes, :coupon,
                     'pending', 'pending', NOW()
                 )
             ");
@@ -180,13 +206,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':pl' => $pickup_location, ':rl' => $pickup_location,
                 ':days' => $days, ':dr' => $car['daily_rate'],
                 ':sub' => $subtotal, ':ext' => $extras_total,
+                ':disc' => $discount,
                 ':tax' => $tax, ':tot' => $total_amount,
                 ':dep' => ($car['deposit'] ?? 2000),
                 ':extras' => json_encode($extras_details),
-                ':notes' => $notes
+                ':notes' => $notes,
+                ':coupon' => $applied_coupon
             ]);
             
             $booking_id = $pdo->lastInsertId();
+
+            // زيادة عداد استخدام الكوبون
+            if ($applied_coupon) {
+                try {
+                    $pdo->prepare("UPDATE coupons SET used_count = used_count + 1 WHERE code = :code")
+                        ->execute([':code' => $applied_coupon]);
+                } catch (Exception $e) {}
+            }
             
             $pdo->commit();
             
@@ -370,6 +406,7 @@ $page_title = 'حجز ' . htmlspecialchars($car['brand'] . ' ' . $car['model']) 
             <?php endif; ?>
             
             <form method="POST" action="" id="bookingForm">
+            <?php echo csrf_field(); ?>
                 <div class="row">
                     <div class="col-lg-8">
                         <!-- Car Summary -->
@@ -481,7 +518,14 @@ $page_title = 'حجز ' . htmlspecialchars($car['brand'] . ' ' . $car['model']) 
                             <div class="summary-row"><span>الضريبة (<?php echo TAX_RATE; ?>%)</span><span id="summaryTax">-</span></div>
                             <div class="summary-row total"><span>المجموع الكلي</span><span id="summaryTotal">-</span></div>
                             
-                            <button type="submit" class="btn btn-primary btn-lg mt-4">
+                            <!-- كوبون الخصم -->
+                            <div class="input-group mt-3">
+                                <input type="text" class="form-control" name="coupon_code" id="couponInput" placeholder="كود الخصم (اختياري)" style="text-transform:uppercase;">
+                                <button type="button" class="btn btn-outline-primary" id="applyCouponBtn" onclick="applyCoupon()">تطبيق</button>
+                            </div>
+                            <small id="couponMessage" class="d-block mt-1"></small>
+
+                            <button type="submit" class="btn btn-primary btn-lg mt-3">
                                 <i class="fas fa-check-circle me-2"></i> تأكيد الحجز
                             </button>
                         </div>
@@ -554,6 +598,17 @@ $page_title = 'حجز ' . htmlspecialchars($car['brand'] . ' ' . $car['model']) 
                 if (days >= 30) discount = subtotalExtras * 0.2;
                 else if (days >= 7) discount = subtotalExtras * 0.1;
                 
+                // خصم الكوبون: يُعتمد الخصم الأفضل فقط
+                if (window.appliedCoupon) {
+                    let couponDisc = 0;
+                    if (days >= (window.appliedCoupon.min_days || 0)) {
+                        couponDisc = (window.appliedCoupon.type === 'percent')
+                            ? subtotalExtras * (window.appliedCoupon.value / 100)
+                            : Math.min(window.appliedCoupon.value, subtotalExtras);
+                    }
+                    if (couponDisc > discount) discount = couponDisc;
+                }
+
                 document.getElementById('summaryDiscount').textContent = '-' + discount.toLocaleString() + ' DH';
                 
                 const afterDiscount = subtotalExtras - discount;
@@ -565,6 +620,46 @@ $page_title = 'حجز ' . htmlspecialchars($car['brand'] . ' ' . $car['model']) 
             }
         }
         
+        // تطبيق كوبون الخصم عبر الـ API
+        window.appliedCoupon = null;
+        function applyCoupon() {
+            const code = document.getElementById('couponInput').value.trim().toUpperCase();
+            const msg = document.getElementById('couponMessage');
+            if (!code) { msg.textContent = ''; return; }
+
+            const pickupDate = document.querySelector('[name="pickup_date"]').value;
+            const returnDate = document.querySelector('[name="return_date"]').value;
+            const days = (pickupDate && returnDate)
+                ? Math.max(1, Math.ceil((new Date(returnDate) - new Date(pickupDate)) / (1000*60*60*24)))
+                : 1;
+
+            msg.style.color = '#6b7280';
+            msg.textContent = 'جارٍ التحقق...';
+
+            fetch('api/validate-coupon.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
+                body: JSON.stringify({code: code, days: days})
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    window.appliedCoupon = data.coupon;
+                    msg.style.color = '#10b981';
+                    msg.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.message;
+                } else {
+                    window.appliedCoupon = null;
+                    msg.style.color = '#ef4444';
+                    msg.innerHTML = '<i class="fas fa-times-circle"></i> ' + (data.message || 'كوبون غير صالح');
+                }
+                updateSummary();
+            })
+            .catch(function() {
+                msg.style.color = '#ef4444';
+                msg.textContent = 'تعذر التحقق من الكوبون';
+            });
+        }
+
         updateSummary();
     </script>
 </body>

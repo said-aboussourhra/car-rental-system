@@ -434,7 +434,7 @@ function car_image($path) {
                             <h4><i class="fas fa-calendar-check me-2"></i> احجز سيارتك الآن</h4>
                         </div>
                         <div class="booking-widget-body">
-                            <form action="booking.php" method="GET">
+                            <form action="cars.php" method="GET">
                                 <div class="mb-3">
                                     <label class="form-label">مكان الاستلام</label>
                                     <select class="form-select" name="pickup_location" required>

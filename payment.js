@@ -4,7 +4,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Stripe initialization
     let stripe, card;
-    const stripeKey = '<?php echo STRIPE_PUBLISHABLE_KEY; ?>';
+    // يُقرأ المفتاح من وسم: <meta name="stripe-key" content="..."> في صفحة الدفع
+    const stripeKey = (document.querySelector('meta[name="stripe-key"]') || {}).content || '';
     
     if (stripeKey && stripeKey !== 'pk_test_YOUR_KEY') {
         stripe = Stripe(stripeKey);

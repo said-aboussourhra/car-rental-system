@@ -1,0 +1,54 @@
+# ============================================================
+# Premium Car Rental - Apache Configuration
+# ============================================================
+
+# منع عرض محتويات المجلدات
+Options -Indexes
+
+# حماية الملفات الحساسة
+<FilesMatch "\.(sql|md|log|ini|env|lnk)$">
+    Require all denied
+</FilesMatch>
+
+<Files ".htaccess">
+    Require all denied
+</Files>
+
+# حماية مجلد الإعدادات من الوصول المباشر
+RewriteEngine On
+RewriteRule ^includes/ - [F,L]
+
+# إخفاء الأخطاء في الإنتاج (لا تعرض تفاصيل الأخطاء للزوار)
+<IfModule mod_php.c>
+    php_flag display_errors Off
+    php_flag log_errors On
+</IfModule>
+
+# رؤوس أمنية
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# منع تنفيذ PHP داخل مجلد الرفع يتم عبر ملف:
+#   uploads/.htaccess
+
+# الضغط والتخزين المؤقت للملفات الثابتة
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
+</IfModule>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/webp "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+    ExpiresByType text/css "access plus 1 week"
+    ExpiresByType application/javascript "access plus 1 week"
+</IfModule>
+
+# صفحات الخطأ
+# ErrorDocument 404 /index.php

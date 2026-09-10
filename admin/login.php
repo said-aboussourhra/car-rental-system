@@ -18,6 +18,7 @@ $email_value = '';
 
 // Process login
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_valid_csrf();
     $email = clean_input($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $email_value = $email;
@@ -325,6 +326,7 @@ $page_title = 'تسجيل الدخول | ' . SITE_NAME;
                     <?php endif; ?>
                     
                     <form method="POST" action="" id="loginForm">
+                    <?php echo csrf_field(); ?>
                         <div class="form-group">
                             <input type="email" class="form-control" name="email" 
                                    placeholder="البريد الإلكتروني" 

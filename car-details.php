@@ -35,6 +35,16 @@ try {
     exit();
 }
 
+// حالة المفضلة للمستخدم الحالي
+$is_favorite = false;
+if (is_logged_in()) {
+    try {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM favorites WHERE user_id = :uid AND car_id = :cid");
+        $stmt->execute([':uid' => $_SESSION['user_id'], ':cid' => $car_id]);
+        $is_favorite = $stmt->fetchColumn() > 0;
+    } catch (Exception $e) {}
+}
+
 // Fetch car images
 try {
     $stmt = $pdo->prepare("SELECT * FROM car_images WHERE car_id = :car_id ORDER BY is_primary DESC, sort_order ASC");
@@ -978,6 +988,11 @@ $page_title = $car['brand'] . ' ' . $car['model'] . ' ' . $car['year'] . ' - ل�
                                 <button type="submit" class="btn btn-primary btn-lg">
                                     <i class="fas fa-calendar-check me-2"></i> احجز الآن
                                 </button>
+                                <button type="button" id="favoriteBtn" onclick="toggleFavorite(<?php echo $car_id; ?>)"
+                                        class="btn btn-lg <?php echo $is_favorite ? 'btn-danger' : 'btn-outline-danger'; ?>">
+                                    <i class="<?php echo $is_favorite ? 'fas' : 'far'; ?> fa-heart me-2"></i>
+                                    <?php echo $is_favorite ? 'في المفضلة' : 'أضف إلى المفضلة'; ?>
+                                </button>
                                 <a href="https://wa.me/212600000000?text=مرحباً، أريد حجز <?php echo urlencode($car['brand'] . ' ' . $car['model'] . ' ' . $car['year']); ?>" 
                                    class="btn btn-success btn-lg" target="_blank">
                                     <i class="fab fa-whatsapp me-2"></i> احجز عبر واتساب
@@ -1169,6 +1184,41 @@ $page_title = $car['brand'] . ' ' . $car['model'] . ' ' . $car['year'] . ' - ل�
             if (e.key === 'ArrowRight') lightboxNavigate(-1);
             if (e.key === 'ArrowLeft') lightboxNavigate(1);
         });
+
+        // المفضلة
+        function toggleFavorite(carId) {
+            var btn = document.getElementById('favoriteBtn');
+            var isLoggedIn = <?php echo is_logged_in() ? 'true' : 'false'; ?>;
+
+            if (!isLoggedIn) {
+                if (confirm('يجب تسجيل الدخول لإضافة سيارة إلى المفضلة. الانتقال لصفحة الدخول؟')) {
+                    window.location.href = 'login.php?redirect=' + encodeURIComponent('car-details.php?id=' + carId);
+                }
+                return;
+            }
+
+            btn.disabled = true;
+            fetch('api/toggle-wishlist.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ car_id: carId })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                btn.disabled = false;
+                if (!data.success) { alert(data.message || 'حدث خطأ'); return; }
+                var icon = btn.querySelector('i');
+                if (data.in_wishlist) {
+                    btn.classList.remove('btn-outline-danger'); btn.classList.add('btn-danger');
+                    icon.className = 'fas fa-heart me-2';
+                    btn.innerHTML = '<i class="fas fa-heart me-2"></i> في المفضلة';
+                } else {
+                    btn.classList.remove('btn-danger'); btn.classList.add('btn-outline-danger');
+                    btn.innerHTML = '<i class="far fa-heart me-2"></i> أضف إلى المفضلة';
+                }
+            })
+            .catch(function () { btn.disabled = false; alert('خطأ في الاتصال'); });
+        }
     </script>
 </body>
 </html>
