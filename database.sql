@@ -47,7 +47,7 @@ CREATE TABLE `users` (
 -- البريد: admin@carrental.ma | كلمة المرور: Admin@123
 -- ⚠️ غيّر كلمة المرور فور أول تسجيل دخول!
 INSERT INTO `users` (`full_name`, `email`, `password`, `phone`, `role`, `status`, `email_verified_at`) VALUES
-('مدير النظام', 'admin@carrental.ma', '$2b$12$Lr2AItvQeM6w1rA8GBFfmek6OrlVSWn6ITnXToC88qaeQH0h/U23u', '0600000000', 'super_admin', 'active', NOW());
+('مدير النظام', 'admin@carrental.ma', '$2y$10$FYtfLH76DRMzfYQndz9NjO0LL9HCduSN1g0pmBFN5TFbrSbZECqFO', '0600000000', 'super_admin', 'active', NOW());
 
 -- ------------------------------------------------------------
 -- السيارات
