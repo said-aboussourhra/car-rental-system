@@ -1,0 +1,59 @@
+# ============================================================================
+# تشغيل النظام كاملاً (الموقع + MySQL) بأمر واحد:
+#
+#   docker compose up -d
+#   ثم: http://localhost:8080/install.php
+#
+# لإيقافه:            docker compose down
+# لحذف البيانات أيضاً: docker compose down -v
+# ============================================================================
+
+services:
+
+  db:
+    image: mysql:8.0
+    container_name: car-rental-db
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: car_rental_db
+      MYSQL_USER: car_rental
+      MYSQL_PASSWORD: car_rental_pass
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-prootpass"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    ports:
+      # اختياري للتصفح عبر عميل MySQL من جهازك
+      - "3307:3306"
+
+  web:
+    build: .
+    container_name: car-rental-web
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # نفس أسماء متغيرات البيئة التي يستخدمها المشروع
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: car_rental_db
+      DB_USER: car_rental
+      DB_PASS: car_rental_pass
+      DB_SSL: 0
+      DB_SESSIONS: 0
+    volumes:
+      # الصور المرفوعة تبقى محفوظة بعد إعادة بناء الحاوية
+      - uploads:/var/www/html/uploads
+    ports:
+      # الموقع على http://localhost:8080
+      - "8080:80"
+
+volumes:
+  db_data:
+  uploads:
