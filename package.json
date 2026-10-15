@@ -1,0 +1,9 @@
+{
+  "name": "loc-voi",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Premium Car Rental — PHP + MySQL. الملف موجود فقط لتثبيت إصدار Node المطلوب لدالة Vercel (vercel-php@0.9.0 يُبنى لـ nodejs24.x) — لا تبعيات ولا خطوة بناء.",
+  "engines": {
+    "node": "24.x"
+  }
+}
