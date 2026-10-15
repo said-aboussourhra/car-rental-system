@@ -182,6 +182,7 @@ return [
 ├── uploads/            # ملفات المستخدمين (سيارات، صور شخصية…)
 ├── database.sql        # مخطط قاعدة البيانات الكامل + البيانات الأولية
 ├── install.php         # معالج التثبيت (احذفه بعد التركيب)
+├── ping.php            # فحص سريع للنشر: هل PHP يعمل؟ وهل قاعدة البيانات متصلة؟
 └── *.php               # صفحات الموقع (الرئيسية، السيارات، الحجز، الدفع…)
 ```
 
@@ -229,6 +230,46 @@ return [
 5. بعد اكتمال النشر افتح `https://loc-voi.vercel.app/install.php` مرة واحدة لإنشاء الجداول وحساب المدير.
 6. افتح `https://loc-voi.vercel.app/add-all-cars.php` لإضافة السيارات التجريبية.
 
+### 🧨 إذا ظهر الموقع كأكواد PHP بدل تشغيله (المشكلة الأكثر شيوعاً)
+
+**العلامة:** تظهر في الصفحة أسطر مثل `<?php echo SITE_NAME; ?>` كنص عادي، وأحياناً تظهر روابط غريبة
+فيها `%3C?php`.
+
+**المعنى:** المنشور لا يشغّل PHP إطلاقاً، ويخدم ملفات `.php` كملفات ثابتة (نص). الكود سليم —
+المشكلة في إعداد النشر فقط.
+
+**تحقق في 5 ثوانٍ:** افتح
+
+```
+https://your-site.com/ping.php
+```
+
+- النتيجة السليمة: `{ "php_running": true, ... }`
+- إذا ظهر الملف نفسه كنص/كود: PHP لا يعمل على هذا النشر.
+
+**قائمة الإصلاح على Vercel (بالترتيب):**
+
+1. **اختر النشر الصحيح**: `Project → Deployments` واحرص أن أحدث نشر في **Production** هو من آخر
+   `main`. إن كان النشر الحالي قديماً: من القائمة `⋯` → **Promote to Production** (أو Redeploy).
+2. **إصدار Node**: `Settings → General → Node.js Version` اجعله **24.x**
+   (runtime `vercel-php@0.9.0` يُبنى لدالة `nodejs24.x`؛ إصدار Node مختلف قد يُسقط الدالة بصمت).
+3. **إعدادات البناء**: `Settings → Build & Development`
+   - Framework Preset: **Other**
+   - Build Command: **فارغ**
+   - Output Directory: **فارغ**
+   - Install Command: **فارغ**
+4. **أعد النشر بدون كاش**: `Deployments → آخر نشر → Redeploy` مع إلغاء **Use existing Build Cache**.
+5. **تأكد من إنشاء الدالة**: في صفحة النشر نفسه افتح تبويب **Functions / Output** — يجب أن ترى
+   `api/index.php` بـ `vercel-php@0.9.0`. إن لم تظهر، فبناء الدالة فشل (اقرأ الـ Build Log).
+6. أعد فتح `/ping.php` — يجب أن يظهر JSON.
+
+> ⚠️ مهم: في `vercel.json` تُرسل قائمة `routes` **كل** الطلبات إلى `api/index.php` (نقطة تشغيل PHP)
+> وهذا مقصود. لا تُضِف `{ "handle": "filesystem" }` قبلها، لأنها ستجعل Vercel يخدم ملفات `.php`
+> كملفات ثابتة = نفس المشكلة تماماً. الملفات الثابتة (CSS/JS/الصور) يخدمها الراوتر نفسه.
+
+> 💡 إن تعذّر تشغيل PHP على Vercel (أو أردت استضافة تدعم الملفات المرفوعة والبريد): النظام PHP عادي
+> ويعمل على أي استضافة PHP + MySQL، أو على VPS/Docker باستخدام صورة `php:8.3-apache`.
+
 ### قيود يجب معرفتها على Vercel
 - **الصور المرفوعة** من لوحة الإدارة تُمحى مع كل عملية نشر جديدة (نظام الملفات مؤقت) — للاستخدام الجاد استخدم تخزيناً خارجياً (S3 ونحوه) أو انشر على استضافة PHP+MySQL تقليدية.
 - **إرسال البريد** عبر `mail()` لا يعمل على Vercel — روابط التفعيل تُسجل في سجلات الأخطاء؛ استخدم خدمة SMTP عند الحاجة.
@@ -238,7 +279,7 @@ return [
 
 0. لا ترفع `config.local.php` إلى Git (مُستثنى في `.gitignore`) — الإعداد الدائم للإنتاج يكون عبر متغيرات البيئة.
 1. اجعل في `includes/config.php`: `define('DEBUG_MODE', false);`
-2. احذف سكربتات التثبيت: `install.php`, `create-tables.php`, `create-admin.php`, `seed-cars.php`, `add-all-cars.php`, `download-images.php`, `create_structure.php`
+2. احذف سكربتات التثبيت والفحص: `install.php`, `create-tables.php`, `create-admin.php`, `seed-cars.php`, `add-all-cars.php`, `download-images.php`, `create_structure.php`, `ping.php`
 3. فعّل HTTPS (الموقع يفعّل كوكيز آمنة تلقائياً معه)
 4. اضبط `SITE_URL` يدوياً إن لم يُكتشف تلقائياً
 5. اضبط إعدادات البريد الحقيقي (الدالة `send_email` في `config.php`) أو استبدلها بـ PHPMailer/SMTP
