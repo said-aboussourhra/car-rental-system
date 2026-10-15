@@ -34,73 +34,46 @@ ini_set('log_errors', '1');
 // ============================================================================
 // DATABASE CONFIGURATION
 // ============================================================================
+// تُقرأ الإعدادات من ملف مشترك مع معالج التثبيت (نفس المنطق في الاثنين):
+//
 // الأولوية:
-// 1. DATABASE_URL
-// 2. DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASS
+//   1. متغيرات البيئة        DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASS / DB_SSL / DB_SOCKET
+//   2. DATABASE_URL          mysql://user:pass@host:port/database
+//   3. متغيرات بديلة         MYSQL_* / TIDB_*
+//   4. ملف الإعدادات المحلي  config.local.php (ينشئه install.php — غير مُتتبع في Git)
+//   5. القيم الافتراضية      127.0.0.1:3306
 // ============================================================================
 
-$_dbUrl = getenv('DATABASE_URL');
+require_once __DIR__ . '/db-settings.php';
 
-if ($_dbUrl) {
-    $_dbParts = parse_url($_dbUrl);
-
-    if ($_dbParts && isset($_dbParts['host'])) {
-
-        // Host
-        putenv('DB_HOST=' . $_dbParts['host']);
-
-        // Port
-        if (isset($_dbParts['port'])) {
-            putenv('DB_PORT=' . $_dbParts['port']);
-        }
-
-        // Database
-        if (isset($_dbParts['path'])) {
-            putenv('DB_NAME=' . ltrim($_dbParts['path'], '/'));
-        }
-
-        // Username
-        if (isset($_dbParts['user'])) {
-            putenv('DB_USER=' . urldecode($_dbParts['user']));
-        }
-
-        // Password
-        if (isset($_dbParts['pass'])) {
-            putenv('DB_PASS=' . urldecode($_dbParts['pass']));
-        }
-    }
-}
+$carRentalDbSettings = db_settings_load();
 
 
 // ============================================================================
 // DATABASE CONSTANTS
 // ============================================================================
 
-define('DB_HOST', getenv('DB_HOST') ?: '127.0.0.1');
+define('DB_HOST', $carRentalDbSettings['host']);
 
-define(
-    'DB_PORT',
-    getenv('DB_PORT') ?: '3306'
-);
+define('DB_PORT', $carRentalDbSettings['port']);
 
-define(
-    'DB_NAME',
-    getenv('DB_NAME') ?: 'car_rental_db'
-);
+define('DB_NAME', $carRentalDbSettings['name']);
 
-define(
-    'DB_USER',
-    getenv('DB_USER') ?: 'root'
-);
+define('DB_USER', $carRentalDbSettings['user']);
 
-define(
-    'DB_PASS',
-    getenv('DB_PASS') !== false
-        ? getenv('DB_PASS')
-        : ''
-);
+define('DB_PASS', $carRentalDbSettings['pass']);
 
-define('DB_CHARSET', 'utf8mb4');
+define('DB_CHARSET', $carRentalDbSettings['charset'] ?: 'utf8mb4');
+
+define('DB_SOCKET', $carRentalDbSettings['socket']);
+
+define('DB_SSL', !empty($carRentalDbSettings['ssl']));
+
+/** مصدر الإعدادات: env | database_url | env_alias | file | default */
+define('DB_CONFIG_SOURCE', $carRentalDbSettings['source']);
+
+/** وصف مقروء لمصدر الإعدادات (للعرض في رسائل الخطأ وصفحة التشخيص) */
+define('DB_CONFIG_SOURCE_LABEL', db_settings_origin_label($carRentalDbSettings));
 
 
 // ============================================================================
@@ -291,98 +264,24 @@ define(
 try {
 
     // ------------------------------------------------------------------------
-    // PDO DSN
+    // PDO DSN  (يدعم Socket محلي أو host:port)
     // ------------------------------------------------------------------------
 
-    $dsn =
-        'mysql:host=' . DB_HOST .
-        ';port=' . DB_PORT .
-        ';dbname=' . DB_NAME .
-        ';charset=' . DB_CHARSET;
+    $dsn = db_dsn($carRentalDbSettings, true);
 
 
     // ------------------------------------------------------------------------
-    // PDO OPTIONS
+    // PDO OPTIONS  (+ TLS عند تفعيل DB_SSL=1، مع مهلة اتصال قصيرة)
     // ------------------------------------------------------------------------
 
-    $options = [
-
-        PDO::ATTR_ERRMODE =>
-            PDO::ERRMODE_EXCEPTION,
-
-        PDO::ATTR_DEFAULT_FETCH_MODE =>
-            PDO::FETCH_ASSOC,
-
-        PDO::ATTR_EMULATE_PREPARES =>
-            false,
-
-        PDO::ATTR_STRINGIFY_FETCHES =>
-            false,
-    ];
-
-
-    // ------------------------------------------------------------------------
-    // SSL / TLS FOR TiDB
-    // ------------------------------------------------------------------------
-    // عند وضع DB_SSL=1 في Vercel سيتم تفعيل SSL.
-    //
-    // لا نضع شهادة ثابتة داخل المشروع.
-    // نبحث عن CA bundle الموجودة في بيئة Linux.
-    // ------------------------------------------------------------------------
-
-    if (getenv('DB_SSL') === '1') {
-
-        // Disable certificate verification only when explicitly requested.
-        // TiDB Cloud commonly requires TLS.
-        if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
-            $options[
-                PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT
-            ] = false;
-        }
-
-
-        // Search common CA bundle locations.
-
-        $caPaths = [
-
-            '/etc/ssl/certs/ca-certificates.crt',
-
-            '/etc/ssl/cert.pem',
-
-            '/etc/pki/tls/certs/ca-bundle.crt',
-
-            '/etc/ssl/ca-bundle.pem',
-
-        ];
-
-
-        foreach ($caPaths as $caPath) {
-
-            if (file_exists($caPath)) {
-
-                if (defined('PDO::MYSQL_ATTR_SSL_CA')) {
-
-                    $options[
-                        PDO::MYSQL_ATTR_SSL_CA
-                    ] = $caPath;
-                }
-
-                break;
-            }
-        }
-    }
+    $options = db_pdo_options($carRentalDbSettings, 5);
 
 
     // ------------------------------------------------------------------------
     // CREATE PDO CONNECTION
     // ------------------------------------------------------------------------
 
-    $pdo = new PDO(
-        $dsn,
-        DB_USER,
-        DB_PASS,
-        $options
-    );
+    $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
 
 
 } catch (PDOException $e) {
@@ -395,10 +294,37 @@ try {
 
     // Never expose database credentials/details to visitors.
 
+    $diagnosis = db_error_diagnosis(
+        $e->getMessage(),
+        $carRentalDbSettings
+    );
+
+
     $message =
         DEBUG_MODE
             ? e($e->getMessage())
-            : 'تأكد من إعداد متغيرات قاعدة البيانات واتصال TiDB.';
+            : e($diagnosis['cause']);
+
+
+    $hints = '';
+
+    if (!empty($diagnosis['hints'])) {
+
+        $hints = '<ul style="
+            text-align:right;
+            color:#475569;
+            font-size:.9rem;
+            line-height:2;
+            margin:18px 0 0;
+            padding-inline-start:20px;
+        ">';
+
+        foreach ($diagnosis['hints'] as $hint) {
+            $hints .= '<li>' . $hint . '</li>';
+        }
+
+        $hints .= '</ul>';
+    }
 
 
     http_response_code(500);
@@ -414,7 +340,7 @@ try {
             min-height:100vh;
         ">
             <div style="
-                max-width:650px;
+                max-width:680px;
                 margin:auto;
                 background:#fff;
                 padding:40px;
@@ -422,18 +348,33 @@ try {
                 box-shadow:0 10px 40px rgba(0,0,0,.08);
             ">
                 <h2 style="margin-bottom:15px;">
-                    ⚠️ تعذر الاتصال بقاعدة البيانات
+                    ⚠️ ' . e($diagnosis['title']) . '
                 </h2>
 
                 <p style="color:#64748b;">
                     ' . $message . '
                 </p>
 
+                <p style="
+                    color:#94a3b8;
+                    font-size:.82rem;
+                    margin-top:14px;
+                ">
+                    الإعدادات المستخدمة:
+                    <code dir="ltr">'
+                        . e(DB_HOST) . ':' . e(DB_PORT) . '
+                    </code>
+                    — المصدر:
+                    ' . e(DB_CONFIG_SOURCE_LABEL) . '
+                </p>
+
+                ' . $hints . '
+
                 <a
                     href="install.php"
                     style="
                         display:inline-block;
-                        margin-top:20px;
+                        margin-top:22px;
                         padding:12px 30px;
                         background:#667eea;
                         color:#fff;
@@ -441,7 +382,7 @@ try {
                         text-decoration:none;
                     "
                 >
-                    فتح صفحة التثبيت
+                    فتح صفحة التثبيت والتشخيص
                 </a>
             </div>
         </div>'

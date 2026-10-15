@@ -8,6 +8,7 @@ desktop.ini
 .env
 *.local
 config.local.php
+includes/db-config.php
 
 # السجلات والمؤقتات
 *.log

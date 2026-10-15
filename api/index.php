@@ -40,6 +40,8 @@ $path = preg_replace('#/+#', '/', $path) ?? '/';
  */
 $blockedPatterns = [
     '#^/includes(?:/|$)#i',
+    '#^(?:.*/)?[^/]*\.local\.php$#i',
+    '#^/db-config\.php$#i',
     '#^/\.git(?:/|$)#i',
     '#^/\.vercel(?:/|$)#i',
     '#^/\.env(?:$|[.])#i',
